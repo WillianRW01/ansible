@@ -1,0 +1,48 @@
+---
+- name: Instalação do Mysql
+  become: yes
+  hosts: db01
+ 
+  vars_files:
+    - vars/main.yml
+  tasks:
+    - name: Instalando Mysql e dependências
+      package:
+       name: "{{item}}"
+       state: present
+       update_cache: yes
+      loop:
+       - mysql-server
+       - mysql-client 
+       - python3-mysqldb
+       - libmysqlclient-dev
+      become: yes
+    - name: Inicia e Habilita o serviço mysql
+      service:
+        name: mysql
+        state: started
+        enabled: yes
+    - name: Criando usuário mysql
+      mysql_user:
+        name: "{{db_user}}"
+        password: "{{db_pass}}"
+        priv: '*.*:ALL'
+        host: '%'
+        state: present
+    - name: Criando o nome do BD
+      mysql_db:
+        name: "{{db_name}}"
+        state: present
+    - name: Habilitando login remoto ao mysql
+      lineinfile:
+         path: /etc/mysql/mysql.conf.d/mysqld.cnf
+         regexp: '^bind-address'
+         line: 'bind-address = 0.0.0.0'
+         backup: yes
+      notify:
+         - Restart mysql
+  handlers:
+    - name: Restart mysql
+      service:
+        name: mysql
+        state: restarted
